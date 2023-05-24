@@ -3,6 +3,7 @@ package com.ggl;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.ResourceBundle;
 
@@ -14,6 +15,7 @@ import com.ggl.entity.GglArray;
 import com.ggl.entity.GglField;
 import com.ggl.entity.GglObject;
 import com.ggl.gglenum.GglType;
+import com.ggl.util.GglDeSerializer;
 import com.ggl.util.GglSerializer;
 
 /**
@@ -25,18 +27,24 @@ public class AppTest {
      */
     @Test
     public void shouldAnswerWithTrue() {
-        byte[] buffer = new byte[1024];
         // boolean num = false;
         GglSerializer gglSerializer = new GglSerializer();
         GglField<Integer> fd=new GglField<Integer>("age", GglType.INT, 22);
         Integer[] rAy=new Integer[]{33,44,55};
         GglArray<Integer> ay=new GglArray<>("sizeArray", GglType.INT, 3, rAy);
+        GglObject innerO = new GglObject("test");
+        innerO.addField(new GglField<Integer>("tall", GglType.INT, 175));
         GglObject gglObject = new GglObject("myobj");
         gglObject.addField(fd);
         gglObject.addArray(ay);
-        // gglSerializer.writeByte(buffer, fd);
-        gglSerializer.writeByte(buffer, gglObject);
-        gglSerializer.writeToFile(buffer,  Path.of("C://Users/24120/Desktop/myjavaobj.gglo"));
+        gglObject.addObject(innerO);    
+        gglSerializer.writeByte(gglObject);
+        gglSerializer.writeToFile(Path.of("C://Users/24120/Desktop/myjavaobj.gglo"));
+        GglDeSerializer gglDeSerializer = new GglDeSerializer(Path.of("C://Users/24120/Desktop/myjavaobj.gglo"));
+        ArrayList<GglObject> result = gglDeSerializer.getResult();
+        for(GglObject o:result){
+        System.out.println(o);
+        }
     }
 
     private void printLongHex(double d) {

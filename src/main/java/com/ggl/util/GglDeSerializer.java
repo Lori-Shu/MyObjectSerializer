@@ -1,15 +1,50 @@
 package com.ggl.util;
 
+import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.util.ArrayList;
+
 import com.ggl.entity.GglArray;
 import com.ggl.entity.GglField;
 import com.ggl.entity.GglObject;
 import com.ggl.gglenum.ContainerType;
 import com.ggl.gglenum.GglType;
 
+
 public class GglDeSerializer {
     private int index;
-    public GglDeSerializer(){
+    private byte[] buffer;
+    private ArrayList<GglObject> result;
+    public GglDeSerializer(Path path){
         index=0;
+        result=new ArrayList<>();
+        assert(path.isAbsolute());
+        try (FileInputStream fis=new FileInputStream(path.toFile())) {
+            buffer=fis.readAllBytes();
+        } catch (Exception e) {
+            throw new RuntimeException("读取文件失败");
+        }
+    }
+
+    public ArrayList<GglObject> getResult(){
+        ContainerType headType = readNextContainerType(buffer);
+        assert(headType==ContainerType.HEADER);
+        byte[] validation = readByteArray(buffer, 6);
+        assert("gglobj".equals(new String(validation)));
+        byte majorVersion=readByte(buffer);
+        byte minorVersion=readByte(buffer);
+        for(ContainerType ctp=ContainerType.ERROR;;){
+            ctp=readNextContainerType(buffer);
+            if(ctp==ContainerType.FOOTER){
+                byte[] footValidation = readByteArray(buffer, 6);
+                assert("gglobj".equals(new String(footValidation)));
+                break;
+            }
+            if(ctp==ContainerType.OBJECT){
+                result.add(readObject(buffer));
+            }
+        }
+        return result;
     }
     
     /**
@@ -239,6 +274,13 @@ public class GglDeSerializer {
             assert (t == ContainerType.ARRAY);
             GglArray readArray = readArray(target);
             gglObject.addArray(readArray);
+        }
+        short objectsLength = readShort(target);
+        for (int index = 0; index < objectsLength; ++index) {
+            ContainerType t = readNextContainerType(target);
+            assert (t == ContainerType.OBJECT);
+            GglObject readObject = readObject(target);
+            gglObject.addObject(readObject);
         }
         return gglObject;
     }

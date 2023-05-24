@@ -7,7 +7,6 @@ import com.ggl.gglenum.ContainerType;
 import com.ggl.gglenum.GglType;
 
 public class GglArray<T> {
-    private static final byte CONTAINER_TYPE = ContainerType.ARRAY.getByteNum();
     private short nameLength;
     private byte[] name;
     private byte type;
@@ -20,9 +19,6 @@ public class GglArray<T> {
         type=t.getTypeNum();
         count=aCount;
         data=aData;        
-    }
-    public byte getContainerType(){
-        return CONTAINER_TYPE;
     }
     
     public short getNameLength() {

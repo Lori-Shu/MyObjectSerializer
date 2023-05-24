@@ -18,11 +18,16 @@ public class GglSerializer {
     private int index;
     private byte[] validateHeader;
     private byte[] version;
+    private byte[] footer;
+    // 最大buffer设置为1M
+    private byte[] target;
 
     public GglSerializer() {
         index = 0;
         validateHeader = "gglobj".getBytes();
         version = new byte[] { (byte) 0b1, (byte) 0b1 };
+        footer="gglobj".getBytes();
+        target=new byte[1024*1024];
     }
 
     public void resetCurrentIndex() {
@@ -33,29 +38,16 @@ public class GglSerializer {
         index = i;
     }
 
-    public void writeHeader(byte[] target) {
-        int index = 0;
-        for (;;) {
-            if (index == validateHeader.length) {
-                break;
-            }
-            writeByte(target, validateHeader[index]);
-            ++index;
-        }
-        index = 0;
-        for (;;) {
-            if (index == version.length) {
-                break;
-            }
-            writeByte(target, version[index]);
-            ++index;
-        }
-    }
-    public void writeToFile(byte[] target,Path path){
-        assert(path.isAbsolute());
-        
+    public void writeToFile(Path path){
+        assert(path.isAbsolute()); 
         try(FileOutputStream fos = new FileOutputStream(path.toFile())) {
-            fos.write(target);
+            fos.write(ContainerType.HEADER.getByteNum());
+            fos.write(validateHeader);
+            fos.write(version);
+            fos.write(target,0,index);
+            System.out.println(index);
+            fos.write(ContainerType.FOOTER.getByteNum());
+            fos.write(footer);
         } catch (Exception e) {
             throw new RuntimeException("将gglobject写入文件失败");
         }
@@ -65,7 +57,7 @@ public class GglSerializer {
     /**
      * 一系列向bytebuffer写入数据的方法，只支持正数
      */
-    public void writeByte(byte[] target, byte num) {
+    public void writeByte(byte num) {
         if(target.length==index){
             throw new RuntimeException("已写入到buffer结尾,序列化对象总大小大于支持的最大大小！");
         }
@@ -73,25 +65,25 @@ public class GglSerializer {
         ++index;
     }
 
-    public void writeByte(byte[] target, byte[] data) {
+    public void writeByte(byte[] data) {
         int index = 0;
         for (;;) {
             if (index == data.length) {
                 break;
             }
-            writeByte(target, data[index]);
+            writeByte(data[index]);
             ++index;
         }
     }
 
-    public void writeByte(byte[] target, short num) {
+    public void writeByte(short num) {
         target[index] = (byte) (num >>> 8);
         ++index;
         target[index] = (byte) (num >>> 0);
         ++index;
     }
 
-    public void writeByte(byte[] target, int num) {
+    public void writeByte(int num) {
         target[index] = (byte) (num >>> 24);
         ++index;
         target[index] = (byte) (num >>> 16);
@@ -102,7 +94,7 @@ public class GglSerializer {
         ++index;
     }
 
-    public void writeByte(byte[] target, long num) {
+    public void writeByte(long num) {
         target[index] = (byte) (num >>> 56);
         ++index;
         target[index] = (byte) (num >>> 48);
@@ -121,32 +113,32 @@ public class GglSerializer {
         ++index;
     }
 
-    public void writeByte(byte[] target, float num) {
+    public void writeByte(float num) {
         int floatToIntBits = Float.floatToIntBits(num);
-        writeByte(target, floatToIntBits);
+        writeByte(floatToIntBits);
     }
 
-    public void writeByte(byte[] target, double num) {
+    public void writeByte(double num) {
         long doubleToLongBits = Double.doubleToLongBits(num);
         System.out.println("longbit :" + doubleToLongBits);
-        writeByte(target, doubleToLongBits);
+        writeByte(doubleToLongBits);
 
     }
 
-    public void writeByte(byte[] target, boolean flag) {
+    public void writeByte(boolean flag) {
         target[index] = (byte) (flag ? 0b1 : 0b0);
         ++index;
     }
 
-    public void writeByte(byte[] target, String str) {
+    public void writeByte(String str) {
         byte[] strBytes = str.getBytes();
-        writeByte(target, (short) strBytes.length);
+        writeByte((short) strBytes.length);
         int i = 0;
         for (;;) {
             if (i == strBytes.length) {
                 break;
             }
-            writeByte(target, strBytes[i]);
+            writeByte(strBytes[i]);
             ++index;
         }
     }
@@ -155,33 +147,33 @@ public class GglSerializer {
     /**
      * 向buffer写入gglfield
      */
-    public <T> void writeByte(byte[] target, GglField<T> fd) {
-        writeByte(target, fd.getContainerType());
-        writeByte(target, fd.getNameLength());
-        writeByte(target, fd.getName());
-        writeByte(target, fd.getType());
+    public <T> void writeByte(GglField<T> fd) {
+        writeByte(ContainerType.FIELD.getByteNum());
+        writeByte(fd.getNameLength());
+        writeByte(fd.getName());
+        writeByte(fd.getType());
         GglType t = GglType.getFromByte(fd.getType());
         switch (t) {
             case BYTE:
-                writeByte(target, (byte) fd.getData());
+                writeByte((byte) fd.getData());
                 break;
             case SHORT:
-                writeByte(target, (short) fd.getData());
+                writeByte((short) fd.getData());
                 break;
             case INT:
-                writeByte(target, (int) fd.getData());
+                writeByte( (int) fd.getData());
                 break;
             case LONG:
-                writeByte(target, (long) fd.getData());
+                writeByte((long) fd.getData());
                 break;
             case FLOAT:
-                writeByte(target, (float) fd.getData());
+                writeByte((float) fd.getData());
                 break;
             case DOUBLE:
-                writeByte(target, (double) fd.getData());
+                writeByte((double) fd.getData());
                 break;
             case BOOLEAN:
-                writeByte(target, (boolean) fd.getData());
+                writeByte((boolean) fd.getData());
                 break;
             default:
                 assert(false);
@@ -192,12 +184,12 @@ public class GglSerializer {
     /**
      * 向buffer写入gglArray
      */
-    public <T> void writeByte(byte[] target, GglArray<T> ay) {
-        writeByte(target, ay.getContainerType());
-        writeByte(target, ay.getNameLength());
-        writeByte(target, ay.getName());
-        writeByte(target, ay.getType());
-        writeByte(target, ay.getCount());
+    public <T> void writeByte(GglArray<T> ay) {
+        writeByte(ContainerType.ARRAY.getByteNum());
+        writeByte(ay.getNameLength());
+        writeByte(ay.getName());
+        writeByte(ay.getType());
+        writeByte(ay.getCount());
         T[] data = ay.getData();
         GglType t = GglType.getFromByte(ay.getType());
         int tempIndex = 0;
@@ -207,7 +199,7 @@ public class GglSerializer {
                 if(tempIndex==data.length){
                     break;
                 }
-                writeByte(target, (byte)data[tempIndex]);
+                writeByte((byte)data[tempIndex]);
                 ++tempIndex;
             }
                 break;
@@ -216,7 +208,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (short) data[tempIndex]);
+                    writeByte( (short) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -225,7 +217,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (int) data[tempIndex]);
+                    writeByte((int) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -234,7 +226,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (long) data[tempIndex]);
+                    writeByte((long) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -243,7 +235,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (float) data[tempIndex]);
+                    writeByte((float) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -252,7 +244,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (double) data[tempIndex]);
+                    writeByte((double) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -261,7 +253,7 @@ public class GglSerializer {
                     if (tempIndex == data.length) {
                         break;
                     }
-                    writeByte(target, (boolean) data[tempIndex]);
+                    writeByte((boolean) data[tempIndex]);
                     ++tempIndex;
                 }
                 break;
@@ -274,17 +266,21 @@ public class GglSerializer {
     /**
      * 向buffer写入gglobject
      */
-    public void writeByte(byte[] target,GglObject obj){
-        writeByte(target, obj.getContainerType());
-        writeByte(target, obj.getNameLength());
-        writeByte(target, obj.getName());
-        writeByte(target, obj.getFieldLength());
+    public void writeByte(GglObject obj){
+        writeByte(ContainerType.OBJECT.getByteNum());
+        writeByte(obj.getNameLength());
+        writeByte(obj.getName());
+        writeByte(obj.getFieldLength());
         for(GglField fd:obj.getFields()){
-            writeByte(target, fd);
+            writeByte(fd);
         }
-        writeByte(target, obj.getArraysLength());
+        writeByte(obj.getArraysLength());
         for (GglArray ay : obj.getArrays()) {
-            writeByte(target, ay);
+            writeByte(ay);
+        }
+        writeByte(obj.getObjectsLength());
+        for (GglObject o : obj.getObjects()) {
+            writeByte(o);
         }
     }
 

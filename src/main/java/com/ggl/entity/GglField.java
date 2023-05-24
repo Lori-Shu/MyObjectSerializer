@@ -4,7 +4,6 @@ import com.ggl.gglenum.ContainerType;
 import com.ggl.gglenum.GglType;
 
 public class GglField<T> {
-    private static final byte CONTAINER_TYPE=ContainerType.FIELD.getByteNum();
     private short nameLength;
     private byte[] name;
     private byte type;
@@ -16,9 +15,7 @@ public class GglField<T> {
         type=gType.getTypeNum();
         data=mData;
     }
-    public byte getContainerType(){
-        return CONTAINER_TYPE;
-    }
+
     public short getNameLength(){
         return nameLength;
     }
